@@ -453,13 +453,24 @@ details.card-details summary:hover {
 </div>
 
 <script>
-const DOH = 'https://dns.google/resolve';
+const DOH_PROVIDERS = [
+  'https://dns.google/resolve',
+  'https://cloudflare-dns.com/dns-query',
+];
 
 async function dnsQuery(name, type) {
-  const url = `${DOH}?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}&cd=false`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`DNS query HTTP ${resp.status}`);
-  return resp.json();
+  let lastErr;
+  for (const base of DOH_PROVIDERS) {
+    try {
+      const url = `${base}?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}&cd=false`;
+      const resp = await fetch(url, { headers: { Accept: 'application/dns-json' } });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return resp.json();
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(`All resolvers failed: ${lastErr.message}`);
 }
 
 function getTXTStrings(data) {
