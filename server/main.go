@@ -3,15 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 )
+
+var httpClient = &http.Client{Timeout: 8 * time.Second}
 
 type dohResponse struct {
 	Status   int           `json:"Status"`
@@ -181,6 +186,49 @@ func resolveHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// fetchHandler proxies HTTPS requests for well-known policy files server-side.
+// Restricted to /.well-known/ paths over HTTPS to prevent SSRF abuse.
+func fetchHandler(w http.ResponseWriter, r *http.Request) {
+	raw := r.URL.Query().Get("url")
+	if raw == "" {
+		http.Error(w, "missing url", http.StatusBadRequest)
+		return
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" {
+		http.Error(w, "url must be https", http.StatusBadRequest)
+		return
+	}
+	if !strings.HasPrefix(u.Path, "/.well-known/") {
+		http.Error(w, "only /.well-known/ paths allowed", http.StatusForbidden)
+		return
+	}
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	req.Header.Set("User-Agent", "Spade-DNS-Inspector/1.0")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		http.Error(w, "fetch failed: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	if err != nil {
+		http.Error(w, "read failed", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(resp.StatusCode)
+	w.Write(body)
+}
+
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
@@ -206,6 +254,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/resolve", resolveHandler)
+	mux.HandleFunc("/fetch", fetchHandler)
 	mux.Handle("/", http.FileServer(http.Dir("/public")))
 
 	if err := http.ListenAndServe(":"+port, securityHeaders(mux)); err != nil {

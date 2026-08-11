@@ -661,15 +661,16 @@ async function checkMTASTS(domain) {
   let policyMode = 'unreachable';
   try {
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 6000);
-    const pResp = await fetch(`https://mta-sts.${domain}/.well-known/mta-sts.txt`, { signal: ctrl.signal });
+    const tid = setTimeout(() => ctrl.abort(), 8000);
+    const policyUrl = `https://mta-sts.${domain}/.well-known/mta-sts.txt`;
+    const pResp = await fetch(`/fetch?url=${encodeURIComponent(policyUrl)}`, { signal: ctrl.signal });
     clearTimeout(tid);
     if (pResp.ok) {
       const text = await pResp.text();
       const m = text.match(/^mode:\s*(\S+)/m);
       policyMode = m ? m[1].toLowerCase() : 'unknown';
     }
-  } catch (_) { /* unreachable or CORS */ }
+  } catch (_) { /* unreachable */ }
 
   if (policyMode === 'enforce') {
     return { status: 'pass', value: sts, detail: 'MTA-STS active with mode: enforce. Policy file reachable.', fix: null };
@@ -694,7 +695,7 @@ async function checkMTASTS(domain) {
   return {
     status: 'warn',
     value: sts,
-    detail: 'TXT record found but policy file unreachable at mta-sts subdomain (may be CORS-blocked — verify manually).',
+    detail: 'TXT record found but policy file unreachable at mta-sts subdomain.',
     fix: `Host policy at https://mta-sts.${domain}/.well-known/mta-sts.txt`
   };
 }
