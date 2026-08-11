@@ -421,6 +421,120 @@ details.card-details summary:hover {
   color: var(--text-muted);
   line-height: 1.55;
 }
+
+/* Grade banner */
+.grade-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  margin-bottom: 0.875rem;
+}
+.grade-letter {
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  width: 2.5rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.grade-info { flex: 1; }
+.grade-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+.grade-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.grade-score {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.grade-banner.pass { border-color: var(--pass-border); background: var(--pass-bg); }
+.grade-banner.pass .grade-letter { color: var(--pass); }
+.grade-banner.pass .grade-label { color: var(--pass); }
+.grade-banner.warn { border-color: var(--warn-border); background: var(--warn-bg); }
+.grade-banner.warn .grade-letter { color: var(--warn); }
+.grade-banner.warn .grade-label { color: var(--warn); }
+.grade-banner.fail { border-color: var(--fail-border); background: var(--fail-bg); }
+.grade-banner.fail .grade-letter { color: var(--fail); }
+.grade-banner.fail .grade-label { color: var(--fail); }
+
+/* Reference section */
+.reference-section {
+  margin-top: 2rem;
+  border-top: 1.5px solid var(--border);
+  padding-top: 1.5rem;
+}
+.reference-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+.ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.ref-table th {
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1.5px solid var(--border);
+}
+.ref-table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.ref-table tr:last-child td { border-bottom: none; }
+.ref-table td:first-child {
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  width: 6rem;
+}
+.ref-table td code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: var(--surface-2);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  color: var(--text);
+  display: inline-block;
+  word-break: break-all;
+}
+.ref-pill {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1em 0.45em;
+  border-radius: 3px;
+  margin-right: 0.25rem;
+  vertical-align: middle;
+}
+.ref-pill.pass { background: var(--pass-bg); color: var(--pass); }
+.ref-pill.warn { background: var(--warn-bg); color: var(--warn); }
+.ref-pill.fail { background: var(--fail-bg); color: var(--fail); }
+@media (max-width: 580px) {
+  .ref-table th:nth-child(3), .ref-table td:nth-child(3) { display: none; }
+}
 </style>
 </head>
 <body>
@@ -448,6 +562,92 @@ details.card-details summary:hover {
     <div class="empty-state">
       <div class="empty-state-icon">&#128274;</div>
       Enter a domain and click Inspect.
+    </div>
+  </div>
+
+  <div class="reference-section">
+    <div class="reference-title">Grading Reference</div>
+    <table class="ref-table">
+      <thead>
+        <tr>
+          <th>Check</th>
+          <th>Pass / Warn / Fail conditions</th>
+          <th>Example record</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>DMARC</td>
+          <td>
+            <span class="ref-pill pass">Pass</span> <code>p=reject</code><br>
+            <span class="ref-pill warn">Warn</span> <code>p=quarantine</code> (spam, not rejected)<br>
+            <span class="ref-pill fail">Fail</span> <code>p=none</code> or no record
+          </td>
+          <td><code>v=DMARC1; p=reject; rua=mailto:dmarc@example.com</code></td>
+        </tr>
+        <tr>
+          <td>SPF</td>
+          <td>
+            <span class="ref-pill pass">Pass</span> ends with <code>-all</code> (hard fail)<br>
+            <span class="ref-pill warn">Warn</span> ends with <code>~all</code> (soft fail)<br>
+            <span class="ref-pill fail">Fail</span> no record, <code>+all</code>, or <code>?all</code>
+          </td>
+          <td><code>v=spf1 include:_spf.google.com -all</code></td>
+        </tr>
+        <tr>
+          <td>DKIM</td>
+          <td>
+            <span class="ref-pill pass">Pass</span> selector TXT found with <code>v=DKIM1</code><br>
+            <span class="ref-pill warn">Warn</span> none of 20 common selectors matched<br>
+            <span class="ref-pill fail">Fail</span> DNS error querying all selectors
+          </td>
+          <td><code>v=DKIM1; k=rsa; p=MIGfMA0GCS...</code> at <code>selector._domainkey.example.com</code></td>
+        </tr>
+        <tr>
+          <td>MTA-STS</td>
+          <td>
+            <span class="ref-pill pass">Pass</span> TXT record + policy file with <code>mode: enforce</code><br>
+            <span class="ref-pill warn">Warn</span> <code>mode: testing</code> or policy unreachable<br>
+            <span class="ref-pill fail">Fail</span> no TXT record at <code>_mta-sts</code>
+          </td>
+          <td><code>v=STSv1; id=20240101000000</code> at <code>_mta-sts.example.com</code></td>
+        </tr>
+        <tr>
+          <td>CAA</td>
+          <td>
+            <span class="ref-pill pass">Pass</span> records with <code>issue</code>, <code>issuewild</code>, and <code>iodef</code><br>
+            <span class="ref-pill warn">Warn</span> present but missing <code>iodef</code> or <code>issuewild</code><br>
+            <span class="ref-pill fail">Fail</span> no records (any CA can issue)
+          </td>
+          <td><code>0 issue "letsencrypt.org"</code><br><code>0 issuewild ";"</code><br><code>0 iodef "mailto:postmaster@example.com"</code></td>
+        </tr>
+        <tr>
+          <td>DNSSEC</td>
+          <td>
+            <span class="ref-pill pass">Pass</span> DS record at registrar + AD bit set<br>
+            <span class="ref-pill fail">Fail</span> zone unsigned — responses can be forged
+          </td>
+          <td>DS record published at registrar; DNSKEY in zone. Enable via DNS provider (e.g. Cloudflare, Route 53).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="reference-title" style="margin-top:1.5rem;">Scoring</div>
+    <table class="ref-table">
+      <thead>
+        <tr><th>Grade</th><th>Score</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong style="color:var(--pass)">A</strong></td><td>85–100</td><td>Excellent — all critical checks passing, hardening complete</td></tr>
+        <tr><td><strong style="color:var(--pass)">B</strong></td><td>65–84</td><td>Good — core email security solid, some hardening gaps</td></tr>
+        <tr><td><strong style="color:var(--warn)">C</strong></td><td>45–64</td><td>Fair — basic protection in place, notable gaps remain</td></tr>
+        <tr><td><strong style="color:var(--warn)">D</strong></td><td>25–44</td><td>Poor — significant gaps, spoofing risk elevated</td></tr>
+        <tr><td><strong style="color:var(--fail)">F</strong></td><td>0–24</td><td>Critical — missing core protections, immediate action needed</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.75rem;">
+      DMARC 35 pts &middot; SPF 25 pts &middot; DKIM 20 pts &middot; MTA-STS 8 pts &middot; CAA 7 pts &middot; DNSSEC 5 pts.
+      DNSSEC fail deducted only 2 pts — rarely deployed even by serious operators.
     </div>
   </div>
 </div>
@@ -785,6 +985,27 @@ const CHECKS = [
 ];
 
 let counts = { pass: 0, warn: 0, fail: 0, done: 0 };
+let checkResults = {};
+
+const SCORES = {
+  dmarc:     { pass: 35, warn: 20, fail: 0,  error: 0 },
+  spf:       { pass: 25, warn: 12, fail: 0,  error: 0 },
+  dkim:      { pass: 20, warn: 10, fail: 0,  error: 0 },
+  'mta-sts': { pass: 8,  warn: 4,  fail: 0,  error: 0 },
+  caa:       { pass: 7,  warn: 3,  fail: 0,  error: 0 },
+  dnssec:    { pass: 5,  warn: 3,  fail: 3,  error: 3 },
+};
+
+function computeGrade() {
+  const score = Object.entries(checkResults).reduce((sum, [id, status]) => {
+    return sum + (SCORES[id]?.[status] ?? 0);
+  }, 0);
+  if (score >= 85) return { letter: 'A', label: 'Excellent', sub: 'Strong DNS security posture.', color: 'pass', score };
+  if (score >= 65) return { letter: 'B', label: 'Good', sub: 'Core email security solid. Some hardening gaps.', color: 'pass', score };
+  if (score >= 45) return { letter: 'C', label: 'Fair', sub: 'Basic protection in place. Notable gaps remain.', color: 'warn', score };
+  if (score >= 25) return { letter: 'D', label: 'Poor', sub: 'Significant gaps. Spoofing risk elevated.', color: 'warn', score };
+  return { letter: 'F', label: 'Critical', sub: 'Missing core protections. Immediate action needed.', color: 'fail', score };
+}
 
 function updateSummary() {
   document.getElementById('pillPass').textContent = counts.pass;
@@ -792,6 +1013,17 @@ function updateSummary() {
   document.getElementById('pillFail').textContent = counts.fail;
   if (counts.done === CHECKS.length) {
     document.getElementById('summaryBar').style.opacity = '1';
+    const g = computeGrade();
+    const banner = document.getElementById('gradeBanner');
+    banner.className = `grade-banner ${g.color}`;
+    banner.innerHTML = `
+      <div class="grade-letter">${g.letter}</div>
+      <div class="grade-info">
+        <div class="grade-label">${g.label}</div>
+        <div class="grade-sub">${g.sub}</div>
+      </div>
+      <div class="grade-score">${g.score}/100</div>`;
+    banner.style.opacity = '1';
   }
 }
 
@@ -861,6 +1093,7 @@ function renderResult(check, result) {
     </div>
     ${docsHtml}`;
 
+  checkResults[check.id] = status;
   counts[status] = (counts[status] || 0) + 1;
   counts.done++;
   updateSummary();
@@ -876,6 +1109,7 @@ function buildResultsArea(domain) {
         <div class="pill fail"><div class="pill-dot"></div><span id="pillFail">0</span> fail</div>
       </div>
     </div>
+    <div class="grade-banner" id="gradeBanner" style="opacity:0; transition: opacity 0.3s;"></div>
     <div class="checks-grid">
       ${CHECKS.map(c => `<div class="check-card" id="card-${c.id}"></div>`).join('')}
     </div>`;
@@ -900,6 +1134,7 @@ async function startInspection() {
   btn.disabled = true;
   btn.textContent = 'Inspecting…';
   counts = { pass: 0, warn: 0, fail: 0, done: 0 };
+  checkResults = {};
   buildResultsArea(domain);
   CHECKS.forEach(c => renderLoading(c));
 
