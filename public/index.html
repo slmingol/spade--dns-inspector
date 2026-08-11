@@ -428,7 +428,7 @@ details.card-details summary:hover {
   <header>
     <div class="header-eyebrow">Security Audit</div>
     <h1>Spade</h1>
-    <p class="subtitle">DNS security inspector. Checks SPF, DMARC, CAA, DNSSEC, MTA-STS, and DKIM in parallel via Google's public DNS resolver.</p>
+    <p class="subtitle">DNS security inspector. Checks SPF, DMARC, CAA, DNSSEC, MTA-STS, and DKIM in parallel via server-side DNS resolution.</p>
   </header>
 
   <div class="input-row">
@@ -453,24 +453,11 @@ details.card-details summary:hover {
 </div>
 
 <script>
-const DOH_PROVIDERS = [
-  'https://dns.google/resolve',
-  'https://cloudflare-dns.com/dns-query',
-];
-
 async function dnsQuery(name, type) {
-  let lastErr;
-  for (const base of DOH_PROVIDERS) {
-    try {
-      const url = `${base}?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}&cd=false`;
-      const resp = await fetch(url, { headers: { Accept: 'application/dns-json' } });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      return resp.json();
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw new Error(`All resolvers failed: ${lastErr.message}`);
+  const url = `/resolve?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}`;
+  const resp = await fetch(url, { headers: { Accept: 'application/dns-json' } });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
 }
 
 function getTXTStrings(data) {

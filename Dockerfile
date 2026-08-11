@@ -1,4 +1,13 @@
-FROM joseluisq/static-web-server:2
+FROM golang:1.23-alpine AS builder
+WORKDIR /build
+COPY server/go.mod ./
+RUN go mod download || true
+COPY server/main.go .
+RUN GOFLAGS=-mod=mod CGO_ENABLED=0 GOOS=linux \
+    go build -ldflags="-w -s" -o spade .
 
+FROM scratch
+COPY --from=builder /build/spade /spade
 COPY public/ /public/
-COPY sws.toml /sws.toml
+EXPOSE 80
+ENTRYPOINT ["/spade"]

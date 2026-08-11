@@ -5,10 +5,3 @@ services:
     ports:
       - "8484:80"
     restart: unless-stopped
-    environment:
-      - SERVER_CONFIG_FILE=/sws.toml
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
