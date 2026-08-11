@@ -717,9 +717,14 @@ async function checkDKIM(domain) {
     })
   );
 
+  const errors = results.filter(r => r.status === 'rejected').length;
   const found = results
     .filter(r => r.status === 'fulfilled' && r.value)
     .map(r => r.value);
+
+  if (errors === DKIM_SELECTORS.length) {
+    throw new Error('All DNS queries failed — network or resolver error');
+  }
 
   if (found.length === 0) {
     return {
