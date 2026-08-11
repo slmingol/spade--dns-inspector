@@ -1,40 +1,115 @@
 # Spade
 
-DNS security inspector. Checks six records that quietly do security work for your domain — in parallel, with live results.
+DNS security inspector. Checks six records that quietly do security work for your domain — in parallel, with live results and a letter grade.
 
 **Checks:** SPF · DMARC · CAA · DNSSEC · MTA-STS · DKIM
 
-Each card shows the raw record value, a pass/warn/fail verdict, and the exact record to publish if something is missing or misconfigured.
+Each card shows the raw record value, a pass/warn/fail verdict, and the exact record to publish if something is missing or misconfigured. A graded summary (A–F, scored out of 100) appears after all checks complete. A reference table at the bottom explains pass/warn/fail conditions and example records for each check.
 
 ## Run
 
 ```bash
 docker compose up -d
-# or
-podman compose up -d
 ```
 
-Serves on port **8484** by default. Change in `compose.yml`.
+Serves on port **8484** by default. Change in `docker-compose.yaml`.
 
 ## How it works
 
-Pure static HTML — no backend, no build step. DNS queries go directly from the browser to [Google's DNS-over-HTTPS API](https://developers.google.com/speed/public-dns/docs/doh/json). Nothing is sent to or stored on the server.
+Single Go binary — serves static files from `/public` and exposes a `/resolve` endpoint that does DNS lookups server-side using the system resolver (standard port 53). The browser calls `/resolve` instead of external DNS-over-HTTPS APIs, so it works behind firewalls that block outbound DoH (port 443 to dns.google / cloudflare-dns.com).
+
+MTA-STS policy files are also fetched server-side via `/fetch`, eliminating CORS issues.
+
+Nothing is stored. All DNS queries happen at request time and are not logged.
 
 ## Stack
 
-- [`joseluisq/static-web-server`](https://static-web-server.net/) — scratch-based static file server (~6 MB image)
-- `sws.toml` — security headers (CSP, X-Frame-Options, etc.)
-- `compose.yml` — port mapping, healthcheck, restart policy
+- Go binary — static file server + DNS proxy + MTA-STS policy fetcher
+- Multi-stage Docker build: `golang:1.23-alpine` builder → `scratch` final image (~15 MB)
+- CI via GitHub Actions → pushes to `ghcr.io/slmingol/spade-dns-inspector:latest`
 
 ## What each check covers
 
 | Check | What it catches |
 |-------|----------------|
 | SPF | Missing or soft-fail (`~all`) records that let anyone spoof your domain |
-| DMARC | `p=none` policies that monitor but enforce nothing |
+| DMARC | `p=none`/`p=quarantine` policies that don't fully enforce rejection |
 | CAA | Missing CA restrictions — any CA can issue certs for your domain |
-| DNSSEC | Zone signed but DS not published at registrar (chain broken) |
-| MTA-STS | SMTP downgrade attacks; verifies policy file mode |
-| DKIM | Probes 20 common selectors to confirm signing is active |
+| DNSSEC | Zone unsigned — DNS responses can be spoofed or poisoned |
+| MTA-STS | SMTP downgrade attacks; fetches and reads policy file mode |
+| DKIM | Probes 20 common selectors to confirm cryptographic signing is active |
 
-The part people miss: having a record and enforcing it are two different states. `p=none`, `~all`, and `mode=testing` all look configured and protect nothing.
+The part people miss: having a record and enforcing it are two different states. `p=none`, `~all`, and `mode: testing` all look configured and protect nothing.
+
+## Grading
+
+Scored out of 100 based on check outcomes:
+
+| Check | Pass | Warn | Fail |
+|-------|------|------|------|
+| DMARC | 35 | 20 | 0 |
+| SPF | 25 | 12 | 0 |
+| DKIM | 20 | 10 | 0 |
+| MTA-STS | 8 | 4 | 0 |
+| CAA | 7 | 3 | 0 |
+| DNSSEC | 5 | 3 | 3 |
+
+| Grade | Score | Meaning |
+|-------|-------|---------|
+| A | 85–100 | Strong DNS security posture |
+| B | 65–84 | Core email security solid, some hardening gaps |
+| C | 45–64 | Basic protection in place, notable gaps remain |
+| D | 25–44 | Significant gaps, spoofing risk elevated |
+| F | 0–24 | Missing core protections, immediate action needed |
+
+DNSSEC fail only deducts 2 points — it is rarely deployed even by serious operators, and the infrastructure requirement (both DNS provider and registrar must support it) puts it in a different category from the email checks.
+
+## Fixing common issues
+
+### DMARC — escalate to reject
+
+Edit the TXT record at `_dmarc.yourdomain`:
+```
+v=DMARC1; p=reject; rua=mailto:postmaster@yourdomain
+```
+Start at `p=quarantine` if you want a burn-in period, then escalate.
+
+### SPF — use hard fail
+
+Ensure the record ends with `-all` not `~all`:
+```
+v=spf1 include:your-mail-provider.com -all
+```
+
+### CAA — restrict certificate issuance
+
+Add three CAA records (check your current cert issuer first — padlock in browser → Certificate → Issuer):
+```
+0 issue "letsencrypt.org"
+0 issuewild ";"
+0 iodef "mailto:postmaster@yourdomain"
+```
+
+### DNSSEC — enable at DNS provider
+
+Cloudflare: DNS tab → DNSSEC section → Enable. Cloudflare generates the DS record values. Add them at your domain registrar. If your domain is registered with Cloudflare it is automatic.
+
+### MTA-STS — two parts
+
+**1. TXT record** at `_mta-sts.yourdomain`:
+```
+v=STSv1; id=20260101000000
+```
+Update the `id=` timestamp whenever you change the policy.
+
+**2. Policy file** served over HTTPS at `https://mta-sts.yourdomain/.well-known/mta-sts.txt`:
+```
+version: STSv1
+mode: enforce
+mx: mx1.your-mail-provider.com
+mx: mx2.your-mail-provider.com
+max_age: 86400
+```
+MX hostnames must match your actual MX records exactly. Start with `mode: testing`, verify no delivery issues, then switch to `mode: enforce`.
+
+Options for hosting the policy file: Cloudflare Worker, Cloudflare Pages, or any web server already mapped to the `mta-sts` subdomain.
