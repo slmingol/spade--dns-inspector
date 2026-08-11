@@ -1,4 +1,23 @@
-# Spade
+```
+  ____  ____   _   ____  _____
+ / ___||  _ \ / \ |  _ \| ____|
+ \___ \| |_) / _ \| | | |  _|
+  ___) |  __/ ___ \ |_| | |___
+ |____/|_| /_/   \_\____/|_____|
+
+  ♠  DNS Security Inspector
+```
+
+[![CI](https://github.com/slmingol/spade--dns-inspector/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/slmingol/spade--dns-inspector/actions/workflows/docker-publish.yml)
+[![GitHub release](https://img.shields.io/github/v/release/slmingol/spade--dns-inspector?include_prereleases)](https://github.com/slmingol/spade--dns-inspector/releases)
+[![GitHub last commit](https://img.shields.io/github/last-commit/slmingol/spade--dns-inspector)](https://github.com/slmingol/spade--dns-inspector/commits/main)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/slmingol/spade--dns-inspector)](https://github.com/slmingol/spade--dns-inspector/commits/main)
+[![GitHub issues](https://img.shields.io/github/issues/slmingol/spade--dns-inspector)](https://github.com/slmingol/spade--dns-inspector/issues)
+[![GitHub repo size](https://img.shields.io/github/repo-size/slmingol/spade--dns-inspector)](https://github.com/slmingol/spade--dns-inspector)
+[![Docker Image](https://ghcr-badge.egpl.dev/slmingol/spade-dns-inspector/size?label=image%20size)](https://github.com/slmingol/spade--dns-inspector/pkgs/container/spade-dns-inspector)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go](https://img.shields.io/badge/Go-1.23-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Container](https://img.shields.io/badge/container-scratch--based-lightgrey?logo=docker)](https://github.com/slmingol/spade--dns-inspector/pkgs/container/spade-dns-inspector)
 
 DNS security inspector. Checks six records that quietly do security work for your domain — in parallel, with live results and a letter grade.
 
