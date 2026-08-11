@@ -1,6 +1,3 @@
-FROM nginx:alpine
+FROM joseluisq/static-web-server:2
 
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
-COPY public/ /usr/share/nginx/html/
-
-EXPOSE 80
+COPY public/ /public/
