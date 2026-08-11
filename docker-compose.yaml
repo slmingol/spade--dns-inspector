@@ -1,6 +1,6 @@
 services:
   spade:
-    image: ghcr.io/slmingol/spade--dns-inspector:latest
+    image: ghcr.io/slmingol/spade-dns-inspector:latest
     container_name: spade
     ports:
       - "8484:80"
