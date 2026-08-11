@@ -363,6 +363,64 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   .loading-pulse { animation: none; }
 }
+
+.card-docs {
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+}
+
+details.card-details summary {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0.5rem 0.9375rem 0.375rem;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  user-select: none;
+}
+
+details.card-details summary::-webkit-details-marker { display: none; }
+
+details.card-details summary::after {
+  content: '▾';
+  font-size: 0.65rem;
+  transition: transform 0.15s;
+}
+
+details.card-details[open] summary::after {
+  transform: rotate(-180deg);
+}
+
+details.card-details summary:hover {
+  color: var(--text-muted);
+}
+
+.doc-sections {
+  padding: 0 0.9375rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.doc-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+
+.doc-section-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
 </style>
 </head>
 <body>
@@ -680,6 +738,39 @@ async function checkDKIM(domain) {
   };
 }
 
+const DOCS = {
+  spf: {
+    purpose: 'Lists the mail servers authorized to send email for your domain. Receiving servers check the sender\'s IP against this list and reject or flag mail from unlisted servers.',
+    implement: 'Add a TXT record at your domain root. Most mail providers give you the exact include: statement to add. End with -all to hard-fail unauthorized senders.',
+    watch: 'Each include: costs one DNS lookup — you get 10 total. Exceeding this returns permerror and can break delivery for all mail. Use ~all (soft fail) during testing only, not in production.',
+  },
+  dmarc: {
+    purpose: 'Ties SPF and DKIM together and sets a policy for what happens when both fail. Also enables aggregate reporting (rua=) so you can see who is sending as your domain before locking it down.',
+    implement: 'Add a TXT record at _dmarc.yourdomain. Start with p=none and rua=mailto:you@yourdomain to collect reports without blocking anything. Once legitimate mail consistently passes, escalate to p=quarantine then p=reject.',
+    watch: 'Requires SPF or DKIM — ideally both — before enforcing. p=reject without DKIM will break forwarded mail because SPF alignment fails on forward but DKIM signature survives it.',
+  },
+  caa: {
+    purpose: 'Restricts which certificate authorities can issue TLS certificates for your domain. Without CAA, any of the 100+ public CAs can issue a cert — a significant attack surface.',
+    implement: 'Add CAA records at your domain root. Use 0 issue for regular certs, 0 issuewild for wildcards, and 0 iodef for violation email alerts. Your CA\'s documentation will tell you the exact value to use.',
+    watch: '0 issuewild ";" blocks all wildcard issuance including by your own CA — only add it if you don\'t use wildcard certs. Without iodef you get no notification when someone attempts unauthorized issuance.',
+  },
+  dnssec: {
+    purpose: 'Cryptographically signs DNS records so resolvers can verify they haven\'t been tampered with or spoofed. Prevents DNS cache poisoning attacks where an attacker redirects your domain to a malicious server.',
+    implement: 'Two steps: enable DNSSEC signing at your DNS provider (generates DNSKEY records), then publish the DS record at your domain registrar. Both must be in place for validation to work end-to-end.',
+    watch: 'Signing the zone does nothing until the DS record exists at the parent registrar — this is the step most people miss. Verify with: dig +dnssec yourdomain and look for the ad (authenticated data) flag in the response.',
+  },
+  'mta-sts': {
+    purpose: 'Tells sending mail servers to always use TLS when delivering to your domain and to validate your mail server\'s certificate. Prevents SMTP downgrade attacks where an attacker strips encryption in transit.',
+    implement: 'Two parts: a TXT record at _mta-sts.yourdomain with v=STSv1; id=TIMESTAMP, and a policy file hosted at https://mta-sts.yourdomain/.well-known/mta-sts.txt. The mta-sts subdomain must serve valid HTTPS.',
+    watch: 'Start with mode: testing — it reports violations but doesn\'t block mail. Switch to mode: enforce only after verifying delivery. A long max_age with enforce before you\'ve tested is a footgun that can silently drop mail.',
+  },
+  dkim: {
+    purpose: 'Adds a cryptographic signature to outbound email headers. Receiving servers verify the signature against the public key in DNS. Unlike SPF, DKIM signatures survive email forwarding.',
+    implement: 'Generate a key pair in your mail provider\'s settings — they give you the public key. Publish it as a TXT record at selector._domainkey.yourdomain. The selector name is chosen by your provider.',
+    watch: 'DKIM is required for DMARC alignment on forwarded mail — without it, p=reject will break forwarded messages where SPF alignment fails. Rotate keys periodically and keep the old selector active for 48h after rotation.',
+  },
+};
+
 const CHECKS = [
   { id: 'spf',     name: 'SPF',     run: checkSPF },
   { id: 'dmarc',   name: 'DMARC',   run: checkDMARC },
@@ -732,6 +823,28 @@ function renderResult(check, result) {
     </div>`;
   }
 
+  const docs = DOCS[check.id];
+  const docsHtml = docs ? `
+    <div class="card-docs">
+      <details class="card-details">
+        <summary>About</summary>
+        <div class="doc-sections">
+          <div>
+            <div class="doc-section-label">What it does</div>
+            <div class="doc-section-text">${esc(docs.purpose)}</div>
+          </div>
+          <div>
+            <div class="doc-section-label">How to implement</div>
+            <div class="doc-section-text">${esc(docs.implement)}</div>
+          </div>
+          <div>
+            <div class="doc-section-label">Watch for</div>
+            <div class="doc-section-text">${esc(docs.watch)}</div>
+          </div>
+        </div>
+      </details>
+    </div>` : '';
+
   card.innerHTML = `
     <div class="card-header">
       <span class="card-name">${check.name}</span>
@@ -741,7 +854,8 @@ function renderResult(check, result) {
       ${valueHtml}
       <div class="card-detail">${esc(detail)}</div>
       ${fixHtml}
-    </div>`;
+    </div>
+    ${docsHtml}`;
 
   counts[status] = (counts[status] || 0) + 1;
   counts.done++;
