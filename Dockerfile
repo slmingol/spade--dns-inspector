@@ -8,6 +8,7 @@ RUN GOFLAGS=-mod=mod CGO_ENABLED=0 GOOS=linux \
 
 FROM scratch
 COPY --from=builder /build/spade /spade
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY public/ /public/
 EXPOSE 80
 ENTRYPOINT ["/spade"]
