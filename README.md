@@ -199,33 +199,61 @@ If the worker overview shows "Metrics is unavailable for Workers with only stati
 
 If curl returns the policy but `max_age` is absent, the worker was built with a single-quoted string containing `\n` escape sequences that Cloudflare's editor rendered as literal backslash-n. Use a template literal (backtick string with real newlines) as shown above.
 
-#### Automated setup with wrangler CLI
+#### Automated hardening with `mta-sts/deploy.sh`
 
-The `mta-sts/deploy.sh` script does everything above in one command: deploys the worker, binds the custom domain, and upserts the `_mta-sts` TXT record.
+`mta-sts/deploy.sh` automates all four fixable checks across any number of domains in one run:
+
+| What | How |
+|------|-----|
+| MTA-STS | Deploys Cloudflare Worker + upserts `_mta-sts` TXT |
+| DMARC | Escalates to `p=reject` if not already |
+| CAA | Adds `issue`/`issuewild`/`iodef` records if missing |
+| DNSSEC | Enables via Cloudflare API if disabled |
+
+All operations are idempotent — safe to re-run, skips what's already correct.
 
 **Prerequisites:**
 
 ```bash
-npm install -g wrangler
-wrangler login   # opens browser for OAuth
+brew install wrangler       # or: npm install -g wrangler
+wrangler login              # opens browser for OAuth
 ```
 
-Create a Cloudflare API token at dash.cloudflare.com → My Profile → API Tokens → Create Token. Needs two permissions on the target zone:
-- Workers Scripts: Edit
-- DNS: Edit
+Create a Cloudflare API token: dash.cloudflare.com → My Profile → API Tokens → Create Token (Custom). Required permissions:
 
-Zone ID is on the right sidebar of your domain's overview page in the Cloudflare dashboard.
+| Resource | Permission |
+|----------|------------|
+| Account → Workers Scripts | Edit |
+| Zone → DNS | Edit |
+| Zone → Workers Routes | Edit |
+
+Scope Zone Resources to specific domains rather than "All zones" where possible.
+
+**Configure:**
+
+```bash
+cp mta-sts/.env.example mta-sts/.env
+# edit mta-sts/.env — add CF_API_TOKEN only
+```
+
+Add domains to `mta-sts/domains.conf` (one per line):
+
+```
+# domain:zone_id:mx_records:ca_issuer
+# Zone ID: Cloudflare dashboard → domain → right sidebar
+# mx_records: comma-separated, must match actual MX records exactly
+# ca_issuer: optional, default letsencrypt.org
+
+example.com:abc123zoneid:mx1.provider.com,mx2.provider.com:letsencrypt.org
+```
 
 **Run:**
 
 ```bash
-DOMAIN=example.com \
-MX_RECORDS="mx1.your-provider.com mx2.your-provider.com" \
-CF_API_TOKEN=your_token_here \
-CF_ZONE_ID=your_zone_id_here \
-./mta-sts/deploy.sh
+./mta-sts/deploy.sh              # all domains in domains.conf
+./mta-sts/deploy.sh example.com  # single domain
 ```
 
-Optional vars: `MTA_STS_MODE` (testing|enforce, default enforce), `MTA_STS_MAX_AGE` (seconds, default 86400), `WORKER_NAME` (overrides auto-generated name).
+**Updating the policy** (e.g. MX change): update `domains.conf` and re-run. The `_mta-sts` TXT `id=` timestamp is bumped automatically so receiving MTAs detect the change.
 
-**Updating the policy** (e.g. adding an MX host): re-run the script with updated `MX_RECORDS`. The script updates the existing TXT record `id=` timestamp automatically so receiving MTAs detect the change.
+**Optional env vars:** `MTA_STS_MODE` (testing|enforce, default: enforce), `MTA_STS_MAX_AGE` (seconds, default: 86400).
