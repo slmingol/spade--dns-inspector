@@ -1,3 +1,4 @@
 .DS_Store
 *.log
 mta-sts/.env
+!mta-sts/domains.conf

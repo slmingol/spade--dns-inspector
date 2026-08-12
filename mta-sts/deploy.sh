@@ -1,61 +1,69 @@
 #!/usr/bin/env bash
-# Deploy MTA-STS policy as a Cloudflare Worker with custom domain + TXT record.
-#
-# Required env vars:
-#   DOMAIN          - bare domain, e.g. example.com
-#   MX_RECORDS      - space-separated MX hostnames, e.g. "mx1.provider.com mx2.provider.com"
-#   CF_API_TOKEN    - Cloudflare API token (Workers Scripts:Edit + DNS:Edit on zone)
-#   CF_ZONE_ID      - Cloudflare Zone ID (dashboard → domain → right sidebar)
-#
-# Optional:
-#   MTA_STS_MODE    - testing|enforce (default: enforce)
-#   MTA_STS_MAX_AGE - seconds (default: 86400)
-#   WORKER_NAME     - override generated name (default: mta-sts-<domain-dashes>)
+# Deploy MTA-STS policy as a Cloudflare Worker for one or all domains in domains.conf.
 #
 # Usage:
-#   DOMAIN=example.com \
-#   MX_RECORDS="mx1.simplelogin.co mx2.simplelogin.co" \
-#   CF_API_TOKEN=xxx \
-#   CF_ZONE_ID=yyy \
-#   ./deploy.sh
+#   ./deploy.sh                  # deploy all domains in domains.conf
+#   ./deploy.sh example.com      # deploy one domain only
+#
+# Required:
+#   CF_API_TOKEN in mta-sts/.env (or set in environment)
+#   domains.conf in same directory as this script
+#
+# Optional env vars:
+#   MTA_STS_MODE    - testing|enforce (default: enforce)
+#   MTA_STS_MAX_AGE - seconds (default: 86400)
 
 set -euo pipefail
 
-# Load .env if present (in same directory as this script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load .env if present
 if [ -f "$SCRIPT_DIR/.env" ]; then
   set -a; source "$SCRIPT_DIR/.env"; set +a
 fi
 
-: "${DOMAIN:?set DOMAIN}"
-: "${MX_RECORDS:?set MX_RECORDS (space-separated hostnames)}"
-: "${CF_API_TOKEN:?set CF_API_TOKEN}"
-: "${CF_ZONE_ID:?set CF_ZONE_ID}"
+: "${CF_API_TOKEN:?set CF_API_TOKEN in mta-sts/.env}"
 
 MODE="${MTA_STS_MODE:-enforce}"
 MAX_AGE="${MTA_STS_MAX_AGE:-86400}"
-WORKER_NAME="${WORKER_NAME:-mta-sts-${DOMAIN//./-}}"
-TIMESTAMP=$(date +%Y%m%d%H%M%S)
-TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
+FILTER="${1:-}"  # optional: single domain to deploy
+DOMAINS_CONF="$SCRIPT_DIR/domains.conf"
 
-# Build MX lines for policy file
-MX_LINES=""
-for mx in $MX_RECORDS; do
-  MX_LINES+="mx: ${mx}"$'\n'
-done
-# Trim trailing newline
-MX_LINES="${MX_LINES%$'\n'}"
+if [ ! -f "$DOMAINS_CONF" ]; then
+  echo "ERROR: $DOMAINS_CONF not found" >&2
+  exit 1
+fi
 
-echo "==> Domain:      $DOMAIN"
-echo "==> Worker name: $WORKER_NAME"
-echo "==> Mode:        $MODE"
-echo "==> MX records:  $MX_RECORDS"
-echo "==> Tmpdir:      $TMPDIR"
-echo ""
+deploy_domain() {
+  local DOMAIN="$1"
+  local ZONE_ID="$2"
+  local MX_CSV="$3"
 
-# --- Generate worker.js ---
-cat > "$TMPDIR/worker.js" <<WORKER
+  local WORKER_NAME="mta-sts-${DOMAIN//./-}"
+  local TIMESTAMP
+  TIMESTAMP=$(date +%Y%m%d%H%M%S)
+  local TMPDIR
+  TMPDIR=$(mktemp -d)
+  trap 'rm -rf "$TMPDIR"' RETURN
+
+  # Build MX lines for policy file
+  local MX_LINES=""
+  IFS=',' read -ra MX_ARRAY <<< "$MX_CSV"
+  for mx in "${MX_ARRAY[@]}"; do
+    MX_LINES+="mx: ${mx}"$'\n'
+  done
+  MX_LINES="${MX_LINES%$'\n'}"
+
+  echo ""
+  echo "========================================"
+  echo "  Domain:  $DOMAIN"
+  echo "  Worker:  $WORKER_NAME"
+  echo "  Mode:    $MODE"
+  echo "  MX:      ${MX_CSV//,/ }"
+  echo "========================================"
+
+  # Generate worker.js
+  cat > "$TMPDIR/worker.js" <<WORKER
 export default {
   fetch(request) {
     const url = new URL(request.url);
@@ -73,8 +81,8 @@ max_age: ${MAX_AGE}\`,
 };
 WORKER
 
-# --- Generate wrangler.toml ---
-cat > "$TMPDIR/wrangler.toml" <<TOML
+  # Generate wrangler.toml
+  cat > "$TMPDIR/wrangler.toml" <<TOML
 name = "${WORKER_NAME}"
 main = "worker.js"
 compatibility_date = "2024-09-23"
@@ -84,50 +92,71 @@ pattern = "mta-sts.${DOMAIN}"
 custom_domain = true
 TOML
 
-echo "==> worker.js:"
-cat "$TMPDIR/worker.js"
-echo ""
-echo "==> wrangler.toml:"
-cat "$TMPDIR/wrangler.toml"
-echo ""
+  # Deploy worker
+  echo "--> Deploying worker..."
+  cd "$TMPDIR"
+  CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" wrangler deploy --config wrangler.toml
+  cd "$SCRIPT_DIR"
 
-# --- Deploy worker ---
-echo "==> Deploying worker..."
-cd "$TMPDIR"
-CLOUDFLARE_API_TOKEN="$CF_API_TOKEN" wrangler deploy --config wrangler.toml
-echo ""
+  # Upsert _mta-sts TXT record
+  echo "--> Upserting _mta-sts TXT record..."
+  local TXT_NAME="_mta-sts.${DOMAIN}"
+  local TXT_CONTENT="v=STSv1; id=${TIMESTAMP}"
 
-# --- Upsert _mta-sts TXT record ---
-echo "==> Upserting _mta-sts TXT record..."
-
-TXT_NAME="_mta-sts.${DOMAIN}"
-TXT_CONTENT="v=STSv1; id=${TIMESTAMP}"
-
-# Check if record exists
-EXISTING=$(curl -s -X GET \
-  "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=TXT&name=${TXT_NAME}" \
-  -H "Authorization: Bearer ${CF_API_TOKEN}" \
-  -H "Content-Type: application/json")
-
-RECORD_ID=$(echo "$EXISTING" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-
-if [ -n "$RECORD_ID" ]; then
-  echo "    Updating existing record $RECORD_ID"
-  curl -s -X PATCH \
-    "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${RECORD_ID}" \
+  local EXISTING
+  EXISTING=$(curl -s -X GET \
+    "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=TXT&name=${TXT_NAME}" \
     -H "Authorization: Bearer ${CF_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    --data "{\"content\":\"${TXT_CONTENT}\"}" | grep -o '"success":[a-z]*'
-else
-  echo "    Creating new record"
-  curl -s -X POST \
-    "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
-    -H "Authorization: Bearer ${CF_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    --data "{\"type\":\"TXT\",\"name\":\"${TXT_NAME}\",\"content\":\"${TXT_CONTENT}\",\"ttl\":300}" | grep -o '"success":[a-z]*'
+    -H "Content-Type: application/json")
+
+  local RECORD_ID
+  RECORD_ID=$(echo "$EXISTING" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+  if [ -n "$RECORD_ID" ]; then
+    echo "    Updating existing record $RECORD_ID → $TXT_CONTENT"
+    curl -s -X PATCH \
+      "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${RECORD_ID}" \
+      -H "Authorization: Bearer ${CF_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      --data "{\"content\":\"${TXT_CONTENT}\"}" | grep -o '"success":[a-z]*'
+  else
+    echo "    Creating record $TXT_CONTENT"
+    curl -s -X POST \
+      "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+      -H "Authorization: Bearer ${CF_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      --data "{\"type\":\"TXT\",\"name\":\"${TXT_NAME}\",\"content\":\"${TXT_CONTENT}\",\"ttl\":300}" | grep -o '"success":[a-z]*'
+  fi
+
+  echo "--> Done: $DOMAIN"
+  echo "    curl https://mta-sts.${DOMAIN}/.well-known/mta-sts.txt"
+}
+
+# Read domains.conf and deploy
+DEPLOYED=0
+while IFS= read -r line; do
+  # Skip comments and blank lines
+  [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+
+  IFS=':' read -r DOMAIN ZONE_ID MX_CSV <<< "$line"
+
+  # Skip if filtering to a specific domain
+  if [ -n "$FILTER" ] && [ "$DOMAIN" != "$FILTER" ]; then
+    continue
+  fi
+
+  deploy_domain "$DOMAIN" "$ZONE_ID" "$MX_CSV"
+  DEPLOYED=$((DEPLOYED + 1))
+done < "$DOMAINS_CONF"
+
+if [ "$DEPLOYED" -eq 0 ]; then
+  if [ -n "$FILTER" ]; then
+    echo "ERROR: domain '$FILTER' not found in domains.conf" >&2
+  else
+    echo "ERROR: no domains found in domains.conf" >&2
+  fi
+  exit 1
 fi
 
 echo ""
-echo "==> Done. Verify:"
-echo "    curl https://mta-sts.${DOMAIN}/.well-known/mta-sts.txt"
-echo "    dig TXT ${TXT_NAME}"
+echo "All done. $DEPLOYED domain(s) deployed."
