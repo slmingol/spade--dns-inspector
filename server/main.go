@@ -143,11 +143,17 @@ func resolveHandler(w http.ResponseWriter, r *http.Request) {
 
 	c := new(dns.Client)
 	c.Net = "udp"
+	c.Timeout = 5 * time.Second
 
 	var resp *dns.Msg
 	var err error
 	for _, ns := range resolvers {
-		resp, _, err = c.Exchange(m, ns)
+		for attempt := 0; attempt < 2; attempt++ {
+			resp, _, err = c.Exchange(m, ns)
+			if err == nil {
+				break
+			}
+		}
 		if err == nil {
 			break
 		}

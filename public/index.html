@@ -1403,7 +1403,10 @@ async function startBulkInspection() {
   btn.textContent = 'Inspecting…';
 
   buildBulkTable(lines);
-  await Promise.allSettled(lines.map(d => inspectDomainBulk(d)));
+  // Process domains 2 at a time to avoid overwhelming the DNS resolver
+  for (let i = 0; i < lines.length; i += 2) {
+    await Promise.allSettled(lines.slice(i, i + 2).map(d => inspectDomainBulk(d)));
+  }
 
   btn.disabled = false;
   btn.textContent = 'Inspect All';
