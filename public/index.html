@@ -94,6 +94,26 @@ body {
 
 header {
   margin-bottom: 2.25rem;
+  position: relative;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.35rem 0.5rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+.theme-toggle:hover {
+  border-color: var(--info);
+  color: var(--text);
 }
 
 .header-eyebrow {
@@ -541,6 +561,7 @@ details.card-details summary:hover {
 <body>
 <div class="container">
   <header>
+    <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode" onclick="toggleTheme()">&#9788;</button>
     <div class="header-eyebrow">Security Audit</div>
     <h1>Spade <span style="font-weight:400; opacity:0.6;">(DNS Inspector)</span></h1>
     <p class="subtitle">DNS security inspector. Checks SPF, DMARC, CAA, DNSSEC, MTA-STS, and DKIM in parallel via server-side DNS resolution.</p>
@@ -1155,6 +1176,24 @@ async function startInspection() {
 document.getElementById('domainInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') startInspection();
 });
+
+(function () {
+  const root = document.documentElement;
+  const btn = document.getElementById('themeToggle');
+  const stored = localStorage.getItem('theme');
+  const apply = theme => {
+    root.setAttribute('data-theme', theme);
+    btn.textContent = theme === 'dark' ? '☀' : '☽';
+    btn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  };
+  const initial = stored || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  apply(initial);
+  window.toggleTheme = () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    apply(next);
+  };
+})();
 </script>
 </body>
 </html>
