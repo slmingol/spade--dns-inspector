@@ -804,8 +804,9 @@ details.card-details summary:hover {
 </div>
 
 <script>
-async function dnsQuery(name, type) {
-  const url = `/resolve?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}`;
+async function dnsQuery(name, type, ns) {
+  let url = `/resolve?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}`;
+  if (ns) url += `&ns=${encodeURIComponent(ns)}`;
   const resp = await fetch(url, { headers: { Accept: 'application/dns-json' } });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json();
@@ -951,7 +952,7 @@ async function checkCAA(domain) {
 async function checkDNSSEC(domain) {
   const [dsData, adData] = await Promise.all([
     dnsQuery(domain, 'DS'),
-    dnsQuery(domain, 'A')
+    dnsQuery(domain, 'A', '1.1.1.1')  // use validating resolver for AD flag
   ]);
 
   const dsRecords = (dsData.Answer || []).filter(r => r.type === 43);

@@ -105,6 +105,7 @@ func rrData(rr dns.RR) string {
 func resolveHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	typeStr := r.URL.Query().Get("type")
+	nsOverride := r.URL.Query().Get("ns") // optional: force a specific nameserver
 	if name == "" {
 		http.Error(w, "missing name", http.StatusBadRequest)
 		return
@@ -125,6 +126,16 @@ func resolveHandler(w http.ResponseWriter, r *http.Request) {
 		qtype = t
 	}
 
+	// Build nameserver list: override takes priority, then system resolvers
+	resolvers := nameservers
+	if nsOverride != "" {
+		ns := nsOverride
+		if !strings.Contains(ns, ":") {
+			ns = ns + ":53"
+		}
+		resolvers = []string{ns}
+	}
+
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(name), qtype)
 	m.RecursionDesired = true
@@ -135,7 +146,7 @@ func resolveHandler(w http.ResponseWriter, r *http.Request) {
 
 	var resp *dns.Msg
 	var err error
-	for _, ns := range nameservers {
+	for _, ns := range resolvers {
 		resp, _, err = c.Exchange(m, ns)
 		if err == nil {
 			break
