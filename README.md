@@ -198,3 +198,34 @@ If the worker overview shows "Metrics is unavailable for Workers with only stati
 **Common failure: `max_age` missing**
 
 If curl returns the policy but `max_age` is absent, the worker was built with a single-quoted string containing `\n` escape sequences that Cloudflare's editor rendered as literal backslash-n. Use a template literal (backtick string with real newlines) as shown above.
+
+#### Automated setup with wrangler CLI
+
+The `mta-sts/deploy.sh` script does everything above in one command: deploys the worker, binds the custom domain, and upserts the `_mta-sts` TXT record.
+
+**Prerequisites:**
+
+```bash
+npm install -g wrangler
+wrangler login   # opens browser for OAuth
+```
+
+Create a Cloudflare API token at dash.cloudflare.com → My Profile → API Tokens → Create Token. Needs two permissions on the target zone:
+- Workers Scripts: Edit
+- DNS: Edit
+
+Zone ID is on the right sidebar of your domain's overview page in the Cloudflare dashboard.
+
+**Run:**
+
+```bash
+DOMAIN=example.com \
+MX_RECORDS="mx1.your-provider.com mx2.your-provider.com" \
+CF_API_TOKEN=your_token_here \
+CF_ZONE_ID=your_zone_id_here \
+./mta-sts/deploy.sh
+```
+
+Optional vars: `MTA_STS_MODE` (testing|enforce, default enforce), `MTA_STS_MAX_AGE` (seconds, default 86400), `WORKER_NAME` (overrides auto-generated name).
+
+**Updating the policy** (e.g. adding an MX host): re-run the script with updated `MX_RECORDS`. The script updates the existing TXT record `id=` timestamp automatically so receiving MTAs detect the change.
