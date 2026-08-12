@@ -1290,15 +1290,13 @@ async function startInspection() {
   buildResultsArea(domain);
   CHECKS.forEach(c => renderLoading(c));
 
-  CHECKS.forEach(async check => {
+  await Promise.allSettled(CHECKS.map(async check => {
     try {
       renderResult(check, await check.run(domain));
     } catch (e) {
       renderResult(check, { status: 'error', value: null, detail: `Query failed: ${e.message}`, fix: null });
     }
-  });
-
-  await Promise.allSettled(CHECKS.map(c => c.run(domain).catch(() => {})));
+  }));
   btn.disabled = false;
   btn.textContent = 'Inspect';
 }
