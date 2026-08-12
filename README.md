@@ -132,3 +132,69 @@ max_age: 86400
 MX hostnames must match your actual MX records exactly. Start with `mode: testing`, verify no delivery issues, then switch to `mode: enforce`.
 
 Options for hosting the policy file: Cloudflare Worker, Cloudflare Pages, or any web server already mapped to the `mta-sts` subdomain.
+
+#### Cloudflare Worker option (free, no server required)
+
+Cloudflare Workers can host the policy file on the free tier (100k requests/day). The key detail: you must create a **script worker**, not a static assets worker. The dashboard offers both and it is easy to create the wrong type.
+
+**Step 1 — create the worker**
+
+Workers & Pages → Create → **Start with Hello World** (not "Upload static assets", not "Build from template"). This creates a script worker with a JavaScript fetch handler.
+
+**Step 2 — replace the default code**
+
+In the editor that opens, delete everything and paste:
+
+```javascript
+export default {
+  fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname !== '/.well-known/mta-sts.txt') {
+      return new Response('Not found', { status: 404 });
+    }
+    return new Response(
+      `version: STSv1
+mode: enforce
+mx: mx1.your-mail-provider.com
+mx: mx2.your-mail-provider.com
+max_age: 86400`,
+      { headers: { 'Content-Type': 'text/plain' } }
+    );
+  }
+};
+```
+
+Replace the `mx:` lines with your actual MX hostnames (must match `dig MX yourdomain` output exactly).
+
+Test in the preview pane: change the URL to `https://your-worker.workers.dev/.well-known/mta-sts.txt` — all 5 lines of the policy should appear. Click **Deploy**.
+
+**Step 3 — add the custom domain**
+
+Domains tab → Add Domain → `mta-sts.yourdomain`. Cloudflare automatically creates a CNAME in your DNS zone pointing to the worker. No manual DNS record needed.
+
+**Step 4 — add the TXT record**
+
+In Cloudflare DNS, add a TXT record:
+
+| Name | Type | Content |
+|------|------|---------|
+| `_mta-sts` | TXT | `v=STSv1; id=20260101000000` |
+
+Update `id=` to the current date in `YYYYMMDDHHMMSS` format whenever you change the policy file. Receiving MTAs use this value to detect policy changes.
+
+**Verify end to end:**
+
+```bash
+curl https://mta-sts.yourdomain/.well-known/mta-sts.txt
+dig TXT _mta-sts.yourdomain
+```
+
+Both must return data before Spade will show MTA-STS as pass.
+
+**Common failure: wrong worker type**
+
+If the worker overview shows "Metrics is unavailable for Workers with only static assets" — wrong type was created. A static assets worker has no fetch handler so every request returns 404. Delete it (Settings → Delete Worker) and recreate from Hello World.
+
+**Common failure: `max_age` missing**
+
+If curl returns the policy but `max_age` is absent, the worker was built with a single-quoted string containing `\n` escape sequences that Cloudflare's editor rendered as literal backslash-n. Use a template literal (backtick string with real newlines) as shown above.
