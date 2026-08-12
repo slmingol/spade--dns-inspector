@@ -556,6 +556,118 @@ details.card-details summary:hover {
 @media (max-width: 580px) {
   .ref-table th:nth-child(3), .ref-table td:nth-child(3) { display: none; }
 }
+
+/* Bulk mode */
+.mode-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+.mode-tab {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.mode-tab.active {
+  background: var(--info);
+  border-color: var(--info);
+  color: #fff;
+}
+.mode-tab:hover:not(.active) {
+  border-color: var(--info);
+  color: var(--text);
+}
+.bulk-input-row {
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+.bulk-input-row.visible { display: flex; }
+.bulk-textarea {
+  width: 100%;
+  min-height: 7rem;
+  padding: 0.6875rem 0.9375rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+  line-height: 1.6;
+}
+.bulk-textarea:focus {
+  border-color: var(--info);
+  box-shadow: 0 0 0 3px var(--info-bg);
+}
+.bulk-textarea::placeholder { color: var(--text-dim); }
+.bulk-table-wrap {
+  overflow-x: auto;
+  margin-top: 0;
+}
+.bulk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.bulk-table th {
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1.5px solid var(--border);
+  white-space: nowrap;
+}
+.bulk-table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.bulk-table tr:last-child td { border-bottom: none; }
+.bulk-table td.domain-cell {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text);
+  font-weight: 600;
+}
+.bulk-badge {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.18em 0.5em;
+  border-radius: 4px;
+  min-width: 2.8rem;
+  text-align: center;
+}
+.bulk-badge.pass { color: var(--pass); background: var(--pass-bg); }
+.bulk-badge.warn { color: var(--warn); background: var(--warn-bg); }
+.bulk-badge.fail { color: var(--fail); background: var(--fail-bg); }
+.bulk-badge.loading { color: var(--loading); background: var(--info-bg); }
+.bulk-grade {
+  font-size: 0.85rem;
+  font-weight: 800;
+  min-width: 2rem;
+  text-align: center;
+}
+.bulk-grade.pass { color: var(--pass); }
+.bulk-grade.warn { color: var(--warn); }
+.bulk-grade.fail { color: var(--fail); }
 </style>
 </head>
 <body>
@@ -567,7 +679,12 @@ details.card-details summary:hover {
     <p class="subtitle">DNS security inspector. Checks SPF, DMARC, CAA, DNSSEC, MTA-STS, and DKIM in parallel via server-side DNS resolution.</p>
   </header>
 
-  <div class="input-row">
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabSingle" onclick="setMode('single')">Single</button>
+    <button class="mode-tab" id="tabBulk" onclick="setMode('bulk')">Bulk</button>
+  </div>
+
+  <div class="input-row" id="singleInputRow">
     <input
       class="domain-input"
       id="domainInput"
@@ -578,6 +695,18 @@ details.card-details summary:hover {
       autocorrect="off"
     />
     <button class="inspect-btn" id="inspectBtn" onclick="startInspection()">Inspect</button>
+  </div>
+
+  <div class="bulk-input-row" id="bulkInputRow">
+    <textarea
+      class="bulk-textarea"
+      id="bulkInput"
+      placeholder="example.com&#10;another.org&#10;third.net"
+      spellcheck="false"
+      autocapitalize="none"
+      autocorrect="off"
+    ></textarea>
+    <button class="inspect-btn" id="bulkBtn" onclick="startBulkInspection()">Inspect All</button>
   </div>
 
   <div id="resultsArea">
@@ -1176,6 +1305,110 @@ async function startInspection() {
 document.getElementById('domainInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') startInspection();
 });
+
+function setMode(mode) {
+  const single = document.getElementById('singleInputRow');
+  const bulk = document.getElementById('bulkInputRow');
+  const tabS = document.getElementById('tabSingle');
+  const tabB = document.getElementById('tabBulk');
+  if (mode === 'single') {
+    single.style.display = 'flex';
+    bulk.classList.remove('visible');
+    tabS.classList.add('active');
+    tabB.classList.remove('active');
+  } else {
+    single.style.display = 'none';
+    bulk.classList.add('visible');
+    tabB.classList.add('active');
+    tabS.classList.remove('active');
+    document.getElementById('resultsArea').innerHTML = '';
+  }
+}
+
+function buildBulkTable(domains) {
+  const checks = CHECKS.map(c => c.name);
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="bulk-table-wrap">
+      <table class="bulk-table" id="bulkTable">
+        <thead>
+          <tr>
+            <th>Domain</th>
+            <th>Grade</th>
+            ${checks.map(n => `<th>${n}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${domains.map(d => `
+            <tr id="bulk-row-${d.replace(/\./g, '_')}">
+              <td class="domain-cell">${esc(d)}</td>
+              <td><span class="bulk-grade" id="bulk-grade-${d.replace(/\./g, '_')}">…</span></td>
+              ${CHECKS.map(c => `<td><span class="bulk-badge loading" id="bulk-${d.replace(/\./g, '_')}-${c.id}">…</span></td>`).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function inspectDomainBulk(domain) {
+  const key = domain.replace(/\./g, '_');
+  const localResults = {};
+
+  await Promise.allSettled(CHECKS.map(async check => {
+    const cellId = `bulk-${key}-${check.id}`;
+    try {
+      const result = await check.run(domain);
+      localResults[check.id] = result.status;
+      const el = document.getElementById(cellId);
+      if (el) {
+        el.className = `bulk-badge ${result.status}`;
+        el.textContent = result.status === 'pass' ? 'Pass'
+          : result.status === 'warn' ? 'Warn' : 'Fail';
+      }
+    } catch (_) {
+      localResults[check.id] = 'error';
+      const el = document.getElementById(cellId);
+      if (el) { el.className = 'bulk-badge fail'; el.textContent = 'Err'; }
+    }
+
+    // Update grade after each check completes
+    const score = Object.entries(localResults).reduce((sum, [id, status]) => {
+      return sum + (SCORES[id]?.[status] ?? 0);
+    }, 0);
+    const gradeEl = document.getElementById(`bulk-grade-${key}`);
+    if (gradeEl) {
+      let letter, color;
+      if (score >= 85)      { letter = 'A'; color = 'pass'; }
+      else if (score >= 65) { letter = 'B'; color = 'pass'; }
+      else if (score >= 45) { letter = 'C'; color = 'warn'; }
+      else if (score >= 25) { letter = 'D'; color = 'warn'; }
+      else                  { letter = 'F'; color = 'fail'; }
+      gradeEl.className = `bulk-grade ${color}`;
+      gradeEl.textContent = `${letter} ${score}`;
+    }
+  }));
+}
+
+async function startBulkInspection() {
+  const lines = document.getElementById('bulkInput').value
+    .split('\n')
+    .map(l => cleanDomain(l))
+    .filter(d => d && d.includes('.'));
+
+  if (!lines.length) {
+    document.getElementById('bulkInput').focus();
+    return;
+  }
+
+  const btn = document.getElementById('bulkBtn');
+  btn.disabled = true;
+  btn.textContent = 'Inspecting…';
+
+  buildBulkTable(lines);
+  await Promise.allSettled(lines.map(d => inspectDomainBulk(d)));
+
+  btn.disabled = false;
+  btn.textContent = 'Inspect All';
+}
 
 (function () {
   const root = document.documentElement;
