@@ -21,6 +21,12 @@
 
 set -euo pipefail
 
+# Load .env if present (in same directory as this script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+  set -a; source "$SCRIPT_DIR/.env"; set +a
+fi
+
 : "${DOMAIN:?set DOMAIN}"
 : "${MX_RECORDS:?set MX_RECORDS (space-separated hostnames)}"
 : "${CF_API_TOKEN:?set CF_API_TOKEN}"
