@@ -152,7 +152,7 @@ deploy_dmarc() {
     # Check if already p=reject
     local EXISTING_CONTENT
     EXISTING_CONTENT=$(cf_get "zones/${ZONE_ID}/dns_records/${RECORD_ID}" \
-      | grep -o '"content":"[^"]*"' | head -1 | cut -d'"' -f4)
+      | jq -r '.result.content // ""')
     if echo "$EXISTING_CONTENT" | grep -q 'p=reject'; then
       echo "  [dmarc] already p=reject, skipping"
       return
