@@ -29,6 +29,16 @@
 
 DNS security inspector. Checks six records that quietly do security work for your domain — in parallel, with live results and a letter grade.
 
+## Screenshots
+
+**Single domain** — per-check cards with raw record values, verdicts, and fix guidance:
+
+![Single domain view](docs/screenshots/single-domain.png)
+
+**Bulk mode** — all domains in a table, each check badged, letter grade per domain:
+
+![Bulk view](docs/screenshots/bulk-view.png)
+
 **Checks:** SPF · DMARC · CAA · DNSSEC · MTA-STS · DKIM
 
 Each card shows the raw record value, a pass/warn/fail verdict, and the exact record to publish if something is missing or misconfigured. A graded summary (A–F, scored out of 100) appears after all checks complete. A reference table at the bottom explains pass/warn/fail conditions and example records for each check.
