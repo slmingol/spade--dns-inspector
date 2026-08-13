@@ -29,19 +29,8 @@ DNS security inspector. Checks six records that quietly do security work for you
 
 `mta-sts/check-all.sh` queries 1.1.1.1 directly — no dependency on the UI:
 
-```ansi
+![CLI check-all output](docs/screenshots/cli-output-dark.png)
 
-DOMAIN                SPF     DMARC   CAA     DNSSEC  MTA-STS  DKIM
---------------------------------------------------------------------------------
-jake8us.org           [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m (dkim)
-dewlabz.com           [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m (dkim)
-lamolabs.com          [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m (dkim)
-lamolabs.org          [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;31mFAIL[0m
-lamotech.com          [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m (dkim)
-lamotech.org          [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m (dkim)
-lmnolabs.org          [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m  [0;32mPASS[0m (dkim)
-
-```
 **Checks:** SPF · DMARC · CAA · DNSSEC · MTA-STS · DKIM
 
 Each card shows the raw record value, a pass/warn/fail verdict, and the exact record to publish if something is missing or misconfigured. A graded summary (A–F, scored out of 100) appears after all checks complete. A reference table at the bottom explains pass/warn/fail conditions and example records for each check.

@@ -229,6 +229,50 @@ async function waitForBulk(page, timeout = 20000) {
     await page2.screenshot({ path: `${OUT}/bulk-view-dark.png`, fullPage: false });
     console.log('  -> bulk-view-dark.png');
 
+    // ── CLI check-all output ─────────────────────────────────────────────────
+    console.log('cli-output...');
+    const page3 = await browser.newPage();
+    await page3.setViewport({ width: 900, height: 320 });
+    const CLI_ROWS = [
+      { domain: 'jake8us.org',   spf:'pass', dmarc:'pass', caa:'pass', dnssec:'pass', mta:'pass', dkim:'pass', dkimSel:'dkim' },
+      { domain: 'dewlabz.com',   spf:'pass', dmarc:'pass', caa:'pass', dnssec:'pass', mta:'pass', dkim:'pass', dkimSel:'dkim' },
+      { domain: 'lamolabs.com',  spf:'pass', dmarc:'pass', caa:'pass', dnssec:'pass', mta:'pass', dkim:'pass', dkimSel:'dkim' },
+      { domain: 'lamolabs.org',  spf:'pass', dmarc:'pass', caa:'pass', dnssec:'pass', mta:'pass', dkim:'fail', dkimSel:'' },
+      { domain: 'lamotech.com',  spf:'pass', dmarc:'pass', caa:'pass', dnssec:'pass', mta:'pass', dkim:'pass', dkimSel:'dkim' },
+      { domain: 'lamotech.org',  spf:'pass', dmarc:'pass', caa:'pass', dnssec:'pass', mta:'pass', dkim:'pass', dkimSel:'dkim' },
+      { domain: 'lmnolabs.org',  spf:'pass', dmarc:'pass', caa:'pass', dnssec:'pass', mta:'pass', dkim:'pass', dkimSel:'dkim' },
+    ];
+    function badge(status, sel) {
+      const color = status === 'pass' ? '#28B86A' : status === 'warn' ? '#E09020' : '#D83A3A';
+      const label = status.toUpperCase();
+      const suffix = sel ? ` <span style="color:#5878a0">(${sel})</span>` : '';
+      return `<span style="color:${color};font-weight:700">${label}</span>${suffix}`;
+    }
+    const rows = CLI_ROWS.map(r =>
+      `<tr><td>${r.domain}</td><td>${badge(r.spf)}</td><td>${badge(r.dmarc)}</td><td>${badge(r.caa)}</td><td>${badge(r.dnssec)}</td><td>${badge(r.mta)}</td><td>${badge(r.dkim, r.dkimSel)}</td></tr>`
+    ).join('');
+    const cliHtml = `<!DOCTYPE html><html><head><style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { background:#0d1117; font-family:'Courier New',Courier,monospace; font-size:13.5px; color:#c0d0e4; padding:22px 26px; }
+      .prompt { color:#5878a0; margin-bottom:14px; font-size:13px; }
+      .prompt span { color:#4a88d8; }
+      table { border-collapse:collapse; width:100%; }
+      th { text-align:left; color:#5878a0; font-weight:700; padding:0 18px 6px 0; border-bottom:1px solid #253a52; }
+      td { padding:5px 18px 0 0; vertical-align:top; white-space:nowrap; }
+      td:first-child { color:#c0d0e4; min-width:140px; }
+    </style></head><body>
+      <div class="prompt">$ <span>./mta-sts/check-all.sh</span></div>
+      <table>
+        <thead><tr><th>DOMAIN</th><th>SPF</th><th>DMARC</th><th>CAA</th><th>DNSSEC</th><th>MTA-STS</th><th>DKIM</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </body></html>`;
+    await page3.setContent(cliHtml, { waitUntil: 'networkidle0' });
+    const bodyHeight = await page3.evaluate(() => document.body.scrollHeight);
+    await page3.setViewport({ width: 900, height: bodyHeight + 44 });
+    await page3.screenshot({ path: `${OUT}/cli-output-dark.png`, fullPage: false });
+    console.log('  -> cli-output-dark.png');
+
     console.log(`\nDone. Screenshots in docs/screenshots/`);
   } finally {
     await browser.close();
