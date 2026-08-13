@@ -1,20 +1,6 @@
-```
- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
- ░                                               ░
- ░    ███████╗██████╗  █████╗ ██████╗ ███████╗  ░
- ░    ██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝  ░
- ░    ███████╗██████╔╝███████║██║  ██║█████╗    ░
- ░    ╚════██║██╔═══╝ ██╔══██║██║  ██║██╔══╝    ░
- ░    ███████║██║     ██║  ██║██████╔╝███████╗  ░
- ░    ╚══════╝╚═╝     ╚═╝  ╚═╝╚═════╝ ╚══════╝  ░
- ░                                               ░
- ░           ♠  DNS  Security  Inspector         ░
- ░         ─────────────────────────────         ░
- ░      SPF · DMARC · CAA · DNSSEC · DKIM       ░
- ░                  MTA-STS                      ░
- ░                                               ░
- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
-```
+<p align="center">
+  <img src="docs/logo.svg" width="100%" alt="Spade DNS Inspector">
+</p>
 
 [![CI](https://github.com/slmingol/spade--dns-inspector/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/slmingol/spade--dns-inspector/actions/workflows/docker-publish.yml)
 [![GitHub release](https://img.shields.io/github/v/release/slmingol/spade--dns-inspector?include_prereleases)](https://github.com/slmingol/spade--dns-inspector/releases)

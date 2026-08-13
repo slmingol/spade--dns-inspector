@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 190">
+  <rect width="860" height="190" fill="#111c2c" rx="10"/>
+  <rect x="1.5" y="1.5" width="857" height="187" fill="none" stroke="#253a52" stroke-width="1.5" rx="9.5"/>
+
+  <text x="430" y="105"
+        font-family="'Courier New', Courier, monospace"
+        font-size="82" font-weight="700"
+        fill="#c0d0e4" text-anchor="middle"
+        letter-spacing="16">SPADE</text>
+
+  <text x="430" y="133"
+        font-family="'Courier New', Courier, monospace"
+        font-size="15" fill="#4a88d8"
+        text-anchor="middle" letter-spacing="2">&#9824;  DNS Security Inspector</text>
+
+  <line x1="240" y1="147" x2="620" y2="147" stroke="#253a52" stroke-width="1"/>
+
+  <text x="430" y="168"
+        font-family="'Courier New', Courier, monospace"
+        font-size="13" fill="#5878a0"
+        text-anchor="middle" letter-spacing="1">SPF · DMARC · CAA · DNSSEC · MTA-STS · DKIM</text>
+</svg>
