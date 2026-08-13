@@ -184,9 +184,8 @@ async function waitForBulk(page, timeout = 20000) {
     await injectFakeData(page, fakeMap, DOMAINS);
     await page.goto(BASE, { waitUntil: 'networkidle0' });
 
-    // Force light theme for consistent screenshots
     await page.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'light');
+      document.documentElement.setAttribute('data-theme', 'dark');
     });
 
     // Type domain and inspect
@@ -206,7 +205,7 @@ async function waitForBulk(page, timeout = 20000) {
     await page2.goto(BASE, { waitUntil: 'networkidle0' });
 
     await page2.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'light');
+      document.documentElement.setAttribute('data-theme', 'dark');
     });
 
     // Switch to Bulk tab
