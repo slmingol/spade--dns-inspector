@@ -194,8 +194,8 @@ async function waitForBulk(page, timeout = 20000) {
     await waitForChecks(page);
     await wait(400);
 
-    await page.screenshot({ path: `${OUT}/single-domain.png`, fullPage: false });
-    console.log('  -> single-domain.png');
+    await page.screenshot({ path: `${OUT}/single-domain-dark.png`, fullPage: false });
+    console.log('  -> single-domain-dark.png');
 
     // ── Bulk view ────────────────────────────────────────────────────────────
     console.log('bulk-view...');
@@ -226,8 +226,8 @@ async function waitForBulk(page, timeout = 20000) {
     await page2.setViewport({ width: 1320, height: Math.max(760, Math.ceil(tableHeight)) });
     await wait(100);
 
-    await page2.screenshot({ path: `${OUT}/bulk-view.png`, fullPage: false });
-    console.log('  -> bulk-view.png');
+    await page2.screenshot({ path: `${OUT}/bulk-view-dark.png`, fullPage: false });
+    console.log('  -> bulk-view-dark.png');
 
     console.log(`\nDone. Screenshots in docs/screenshots/`);
   } finally {

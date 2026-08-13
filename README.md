@@ -19,11 +19,11 @@ DNS security inspector. Checks six records that quietly do security work for you
 
 **Single domain** — per-check cards with raw record values, verdicts, and fix guidance:
 
-![Single domain view](docs/screenshots/single-domain.png)
+![Single domain view](docs/screenshots/single-domain-dark.png)
 
 **Bulk mode** — all domains in a table, each check badged, letter grade per domain:
 
-![Bulk view](docs/screenshots/bulk-view.png)
+![Bulk view](docs/screenshots/bulk-view-dark.png)
 
 **Checks:** SPF · DMARC · CAA · DNSSEC · MTA-STS · DKIM
 
