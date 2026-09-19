@@ -16,6 +16,8 @@ import (
 	"github.com/miekg/dns"
 )
 
+var version = "dev"
+
 var httpClient = &http.Client{Timeout: 8 * time.Second}
 
 type dohResponse struct {
@@ -246,6 +248,11 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+func versionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"version":%q}`, version)
+}
+
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
@@ -272,6 +279,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/resolve", resolveHandler)
 	mux.HandleFunc("/fetch", fetchHandler)
+	mux.HandleFunc("/api/version", versionHandler)
 	mux.Handle("/", http.FileServer(http.Dir("/public")))
 
 	if err := http.ListenAndServe(":"+port, securityHeaders(mux)); err != nil {
