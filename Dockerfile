@@ -1,5 +1,5 @@
 ARG VERSION=dev
-FROM golang:1.27.1-alpine3.24 AS builder
+FROM golang:1.27.2-alpine3.24 AS builder
 ARG VERSION
 WORKDIR /build
 COPY server/go.mod ./
